@@ -9,7 +9,7 @@ body {
   padding: 1em;
 }
 
-/* ---------------- HEADER LAYOUT (Step 5 UI) ---------------- */
+/* ---------------- HEADER ---------------- */
 
 header {
   display: flex;
@@ -33,7 +33,7 @@ label {
   max-width: 40vw;
 }
 
-/* ---------------- TIME DISPLAY ---------------- */
+/* ---------------- TIME ---------------- */
 
 time {
   display: block;
@@ -41,7 +41,6 @@ time {
   font-weight: 500;
 }
 
-/* "(any time)" label */
 em {
   display: block;
   color: #777;
@@ -63,24 +62,7 @@ em {
   height: 100%;
 }
 
-/* ---------------- SVG OVERLAY ---------------- */
-
-#map svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
-
-  pointer-events: none; /* allows map interaction */
-}
-
-/* circles remain interactive for tooltips */
-#map svg circle {
-  pointer-events: auto;
-}
-
-/* ---------------- LEGEND (LAYOUT ONLY) ---------------- */
+/* ---------------- LEGEND LAYOUT ONLY ---------------- */
 
 .legend {
   display: flex;

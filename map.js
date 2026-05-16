@@ -12,7 +12,6 @@ const map = new mapboxgl.Map({
 });
 
 const svg = d3.select('#map').select('svg');
-svg.style('pointer-events', 'none');
 
 // ---------------- traffic flow scale ----------------
 const stationFlow = d3
@@ -92,7 +91,7 @@ function filterTripsByTime(trips, timeFilter) {
   });
 }
 
-// ---------------- UPDATE FUNCTION (FIXED) ----------------
+// ---------------- UPDATE FUNCTION ----------------
 function updateScatterPlot() {
   const filteredTrips = filterTripsByTime(trips, timeFilter);
   const updatedStations = computeStationTraffic(stations, filteredTrips);
@@ -104,6 +103,7 @@ function updateScatterPlot() {
     .attr('r', (d) => radiusScale(d.totalTraffic))
     .attr('cx', (d) => getCoords(d).cx)
     .attr('cy', (d) => getCoords(d).cy)
+    .style('pointer-events', 'auto') // 🔥 FIX
     .style('--departure-ratio', (d) =>
       stationFlow(d.departures / d.totalTraffic || 0)
     );
@@ -184,7 +184,7 @@ map.on('load', async () => {
     .domain([0, maxTraffic])
     .range([0, 25]);
 
-  // ---------------- CIRCLES (ENTER ONCE ONLY) ----------------
+  // ---------------- CIRCLES ----------------
   circles = svg
     .selectAll('circle')
     .data(baseStations, (d) => d.short_name)
@@ -197,13 +197,13 @@ map.on('load', async () => {
     .attr('r', (d) => radiusScale(d.totalTraffic))
     .attr('cx', (d) => getCoords(d).cx)
     .attr('cy', (d) => getCoords(d).cy)
+    .style('pointer-events', 'auto') // 🔥 FIX
 
-    // initial color state
     .style('--departure-ratio', (d) =>
       stationFlow(d.departures / d.totalTraffic || 0)
     )
 
-    // TOOLTIP (PRESERVED)
+    // ✅ SINGLE TOOLTIP ONLY (FIXED)
     .each(function (d) {
       d3.select(this)
         .append('title')
@@ -212,7 +212,6 @@ map.on('load', async () => {
         );
     });
 
-  // ---------------- map reposition ----------------
   function updatePositions() {
     circles
       .attr('cx', (d) => getCoords(d).cx)
