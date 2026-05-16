@@ -20,8 +20,8 @@
   inset: 0;
   z-index: 0;
 
-  /* CRITICAL: allow hover through map */
-  pointer-events: none;
+  /* FIX: Map must remain interactive */
+  pointer-events: auto;
 }
 
 /* ---------------- SVG LAYER ---------------- */
@@ -33,14 +33,16 @@
   height: 100%;
   z-index: 10;
 
-  /* IMPORTANT: must be AUTO, NOT none */
-  pointer-events: auto;
+  /* CRITICAL FIX:
+     SVG must NOT block map interaction */
+  pointer-events: none;
 }
 
 /* ---------------- CIRCLES ---------------- */
 
 #map svg circle {
-  pointer-events: visiblePainted; 
+  /* allow hover ONLY on circles */
+  pointer-events: all;
 
   fill: color-mix(
     in oklch,
@@ -52,6 +54,7 @@
   stroke: white;
   stroke-width: 1px;
 }
+
 /* ---------------- LEGEND ---------------- */
 
 .legend {
