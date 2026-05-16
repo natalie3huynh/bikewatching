@@ -1,20 +1,19 @@
-html,
-body {
-  margin: 0;
-  padding: 5;
-  height: 100%;
-  width: 100%;
-  display: flex;
-  justify-content: center; /* Center horizontally */
-  align-items: center; /* Center vertically */
+:root {
+  --color-departures: steelblue;
+  --color-arrivals: darkorange;
 }
 
+/* ---------------- MAP CONTAINER ---------------- */
+
 #map {
-  width: 100%; /* Adjust width to your desired size */
-  height: 100%; /* Adjust height to your desired size */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Optional: subtle shadow for effect */
-  border-radius: 8px; /* Optional: rounded corners */
+  position: relative;
+  width: 100%;
+  height: 100%;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
 }
+
+/* ---------------- SVG OVERLAY ---------------- */
 
 #map svg {
   position: absolute;
@@ -26,4 +25,58 @@ body {
 
 #map svg circle {
   pointer-events: auto;
+
+  /* ---------------- traffic flow colors ---------------- */
+  fill: color-mix(
+    in oklch,
+    var(--color-departures) calc(100% * var(--departure-ratio, 0.5)),
+    var(--color-arrivals)
+  );
+
+  fill-opacity: 0.6;
+  stroke: white;
+  stroke-width: 1px;
+}
+
+/* ---------------- LEGEND ---------------- */
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 16px; /* big separation between title and items */
+  margin-block: 12px;
+}
+
+/* Title ("Legend:") */
+.legend-title {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Each legend item */
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px; /* small gap = proximity principle */
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Swatch */
+.legend-item::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+
+  --color-departures: steelblue;
+  --color-arrivals: darkorange;
+
+  background: color-mix(
+    in oklch,
+    var(--color-departures) calc(100% * var(--departure-ratio, 0.5)),
+    var(--color-arrivals)
+  );
+
+  display: inline-block;
 }
