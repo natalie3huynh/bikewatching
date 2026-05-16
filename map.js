@@ -11,7 +11,18 @@ const map = new mapboxgl.Map({
   zoom: 12,
 });
 
-const svg = d3.select('#map').select('svg');
+/**
+ * ✅ FIX: ensure SVG exists BEFORE selection (prevents silent hover issues)
+ */
+let svg = d3.select('#map svg');
+
+if (svg.empty()) {
+  svg = d3
+    .select('#map')
+    .append('svg')
+    .style('position', 'absolute')
+    .style('inset', 0);
+}
 
 // ---------------- traffic flow scale ----------------
 const stationFlow = d3
@@ -103,7 +114,7 @@ function updateScatterPlot() {
     .attr('r', (d) => radiusScale(d.totalTraffic))
     .attr('cx', (d) => getCoords(d).cx)
     .attr('cy', (d) => getCoords(d).cy)
-    .style('pointer-events', 'auto') // 🔥 FIX
+    .style('pointer-events', 'auto') // 🔥 ensures hover works
     .style('--departure-ratio', (d) =>
       stationFlow(d.departures / d.totalTraffic || 0)
     );
@@ -197,13 +208,13 @@ map.on('load', async () => {
     .attr('r', (d) => radiusScale(d.totalTraffic))
     .attr('cx', (d) => getCoords(d).cx)
     .attr('cy', (d) => getCoords(d).cy)
-    .style('pointer-events', 'auto') // 🔥 FIX
+    .style('pointer-events', 'auto') // 🔥 CRITICAL FIX
 
     .style('--departure-ratio', (d) =>
       stationFlow(d.departures / d.totalTraffic || 0)
     )
 
-    // ✅ SINGLE TOOLTIP ONLY (FIXED)
+    // ✅ SINGLE TOOLTIP (safe, no duplicates)
     .each(function (d) {
       d3.select(this)
         .append('title')
@@ -211,6 +222,9 @@ map.on('load', async () => {
           `${d.totalTraffic} trips (${d.departures} departures, ${d.arrivals} arrivals)`
         );
     });
+    circles.on('mouseenter', function () {
+  console.log('HOVER WORKS');
+});
 
   function updatePositions() {
     circles
@@ -224,6 +238,3 @@ map.on('load', async () => {
 
   updateTimeDisplay();
 });
-
-window.map = map;
-window.mapboxgl = mapboxgl;

@@ -13,30 +13,34 @@
   border-radius: 8px;
 }
 
-/* Mapbox canvas below everything */
+/* ---------------- MAPBOX CANVAS ---------------- */
+
 .mapboxgl-canvas {
   position: absolute;
   inset: 0;
   z-index: 0;
+
+  /* CRITICAL: allow hover through map */
+  pointer-events: none;
 }
 
-/* ---------------- SVG LAYER (FIX IS HERE) ---------------- */
+/* ---------------- SVG LAYER ---------------- */
 
 #map svg {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  z-index: 2;
+  z-index: 10;
 
-  /* CRITICAL FIX */
-  pointer-events: none;
+  /* IMPORTANT: must be AUTO, NOT none */
+  pointer-events: auto;
 }
 
 /* ---------------- CIRCLES ---------------- */
 
 #map svg circle {
-  pointer-events: all;
+  pointer-events: visiblePainted; /* 🔥 more reliable than auto */
 
   fill: color-mix(
     in oklch,
@@ -48,8 +52,7 @@
   stroke: white;
   stroke-width: 1px;
 }
-
-/* ---------------- LEGEND (UNCHANGED) ---------------- */
+/* ---------------- LEGEND ---------------- */
 
 .legend {
   display: flex;
