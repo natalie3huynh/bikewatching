@@ -9,35 +9,42 @@ const map = new mapboxgl.Map({
   style: 'mapbox://styles/mapbox/streets-v12',
   center: [-71.09415, 42.36027],
   zoom: 12,
-  minZoom: 5,
-  maxZoom: 18,
 });
 
 const svg = d3.select('#map').select('svg');
-
-// IMPORTANT for hover tooltips to work
 svg.style('pointer-events', 'none');
 
+// ---------------- helpers ----------------
 function getCoords(station) {
   const point = new mapboxgl.LngLat(+station.lon, +station.lat);
   const { x, y } = map.project(point);
   return { cx: x, cy: y };
 }
 
-map.on('load', async () => {
+function minutesSinceMidnight(date) {
+  return date.getHours() * 60 + date.getMinutes();
+}
 
-  // ---------------- load stations ----------------
-  const stationsData = await d3.json(
-    'https://dsc106.com/labs/lab07/data/bluebikes-stations.json'
-  );
+// ---------------- global state ----------------
+let stations = [];
+let trips = [];
+let circles;
+let radiusScale;
+let timeFilter = -1;
 
-  const trips = await d3.csv(
-    'https://dsc106.com/labs/lab07/data/bluebikes-traffic-2024-03.csv'
-  );
+// ---------------- slider UI ----------------
+const timeSlider = document.getElementById('time-slider');
+const selectedTime = document.getElementById('selected-time');
+const anyTimeLabel = document.getElementById('any-time');
 
-  let stations = stationsData.data.stations;
+// ---------------- formatting ----------------
+function formatTime(minutes) {
+  const d = new Date(0, 0, 0, 0, minutes);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
 
-  // ---------------- Step 4.2: rollups ----------------
+// ---------------- compute traffic ----------------
+function computeStationTraffic(stations, trips) {
   const departures = d3.rollup(
     trips,
     (v) => v.length,
@@ -50,39 +57,146 @@ map.on('load', async () => {
     (d) => d.end_station_id
   );
 
-  stations = stations.map((station) => {
+  return stations.map((station) => {
     const id = station.short_name;
 
-    station.arrivals = arrivals.get(id) ?? 0;
-    station.departures = departures.get(id) ?? 0;
-    station.totalTraffic =
-      station.arrivals + station.departures;
+    const arr = arrivals.get(id) ?? 0;
+    const dep = departures.get(id) ?? 0;
 
-    return station;
+    return {
+      ...station,
+      arrivals: arr,
+      departures: dep,
+      totalTraffic: arr + dep,
+    };
+  });
+}
+
+// ---------------- filtering ----------------
+function filterTripsByTime(trips, timeFilter) {
+  if (timeFilter === -1) return trips;
+
+  return trips.filter((trip) => {
+    const start = minutesSinceMidnight(trip.started_at);
+    const end = minutesSinceMidnight(trip.ended_at);
+
+    return (
+      Math.abs(start - timeFilter) <= 60 ||
+      Math.abs(end - timeFilter) <= 60
+    );
+  });
+}
+
+// ---------------- scatterplot update ----------------
+function updateScatterPlot() {
+  const filteredTrips = filterTripsByTime(trips, timeFilter);
+  const updatedStations = computeStationTraffic(stations, filteredTrips);
+
+  // 🔥 IMPORTANT FIX: skeleton-required scaling rule
+  radiusScale.range(
+    timeFilter === -1 ? [0, 25] : [3, 50]
+  );
+
+  circles
+    .data(updatedStations, (d) => d.short_name)
+    .join('circle')
+    .attr('r', (d) => radiusScale(d.totalTraffic))
+    .attr('cx', (d) => getCoords(d).cx)
+    .attr('cy', (d) => getCoords(d).cy);
+}
+
+// ---------------- slider logic ----------------
+function updateTimeDisplay() {
+  timeFilter = Number(timeSlider.value);
+
+  if (timeFilter === -1) {
+    selectedTime.textContent = '';
+    anyTimeLabel.style.display = 'block';
+  } else {
+    selectedTime.textContent = formatTime(timeFilter);
+    anyTimeLabel.style.display = 'none';
+  }
+
+  updateScatterPlot();
+}
+
+timeSlider.addEventListener('input', updateTimeDisplay);
+
+// ---------------- MAP LOAD ----------------
+map.on('load', async () => {
+
+  // ---------------- BOSTON BIKE LANES ----------------
+  map.addSource('boston_route', {
+    type: 'geojson',
+    data: 'https://bostonopendata-boston.opendata.arcgis.com/datasets/boston::existing-bike-network-2022.geojson',
   });
 
-  console.log('Stations with traffic:', stations);
+  map.addLayer({
+    id: 'boston-bike-lanes',
+    type: 'line',
+    source: 'boston_route',
+    paint: {
+      'line-color': 'green',
+      'line-width': 3,
+      'line-opacity': 0.4,
+    },
+  });
 
-  // ---------------- Step 4.3: radius scale ----------------
-  const radiusScale = d3.scaleSqrt()
-    .domain([0, d3.max(stations, d => d.totalTraffic)])
+  // ---------------- CAMBRIDGE BIKE LANES ----------------
+  map.addSource('cambridge_route', {
+    type: 'geojson',
+    data: 'https://raw.githubusercontent.com/cambridgegis/cambridgegis_data/main/Recreation/Bike_Facilities/RECREATION_BikeFacilities.geojson',
+  });
+
+  map.addLayer({
+    id: 'cambridge-bike-lanes',
+    type: 'line',
+    source: 'cambridge_route',
+    paint: {
+      'line-color': '#0072B2',
+      'line-width': 3,
+      'line-opacity': 0.4,
+    },
+  });
+
+  // ---------------- DATA ----------------
+  const stationsData = await d3.json(
+    'https://dsc106.com/labs/lab07/data/bluebikes-stations.json'
+  );
+
+  trips = await d3.csv(
+    'https://dsc106.com/labs/lab07/data/bluebikes-traffic-2024-03.csv',
+    (d) => {
+      d.started_at = new Date(d.started_at);
+      d.ended_at = new Date(d.ended_at);
+      return d;
+    }
+  );
+
+  stations = stationsData.data.stations;
+
+  const baseStations = computeStationTraffic(stations, trips);
+
+  const maxTraffic = d3.max(baseStations, (d) => d.totalTraffic);
+
+  // ---------------- SCALE ----------------
+  radiusScale = d3.scaleSqrt()
+    .domain([0, maxTraffic])
     .range([0, 25]);
 
-  // ---------------- circles ----------------
-  const circles = svg
+  // ---------------- CIRCLES ----------------
+  circles = svg
     .selectAll('circle')
-    .data(stations)
+    .data(baseStations, (d) => d.short_name)
     .enter()
     .append('circle')
-    .attr('r', d => radiusScale(d.totalTraffic))
     .attr('fill', 'steelblue')
     .attr('fill-opacity', 0.6)
     .attr('stroke', 'white')
     .attr('stroke-width', 1)
-    .attr('cx', d => getCoords(d).cx)
-    .attr('cy', d => getCoords(d).cy)
-
-    // ---------------- REQUIRED STEP 4.4 ----------------
+    .attr('r', (d) => radiusScale(d.totalTraffic))
+    .attr('cx', (d) => getCoords(d).cx)
+    .attr('cy', (d) => getCoords(d).cy)
     .each(function (d) {
       d3.select(this)
         .append('title')
@@ -91,16 +205,19 @@ map.on('load', async () => {
         );
     });
 
-  // ---------------- update positions ----------------
+  // ---------------- reposition ----------------
   function updatePositions() {
     circles
-      .attr('cx', d => getCoords(d).cx)
-      .attr('cy', d => getCoords(d).cy);
+      .attr('cx', (d) => getCoords(d).cx)
+      .attr('cy', (d) => getCoords(d).cy);
   }
-
-  updatePositions();
 
   map.on('move', updatePositions);
   map.on('zoom', updatePositions);
   map.on('resize', updatePositions);
+
+  updateTimeDisplay();
 });
+
+window.map = map;
+window.mapboxgl = mapboxgl;
