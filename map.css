@@ -40,7 +40,7 @@
 /* ---------------- CIRCLES ---------------- */
 
 #map svg circle {
-  pointer-events: visiblePainted; /* 🔥 more reliable than auto */
+  pointer-events: visiblePainted; 
 
   fill: color-mix(
     in oklch,
